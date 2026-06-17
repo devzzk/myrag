@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG-Challenge-2 代码分析报告</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --card-bg: #16213e;
+    --card-bg2: #0f3460;
+    --text: #e0e0e0;
+    --accent: #e94560;
+    --accent2: #533483;
+    --green: #00c897;
+    --yellow: #ffd369;
+    --orange: #f0a500;
+    --red: #f05454;
+    --blue: #4dabf7;
+    --purple: #b197fc;
+    --border: #2a2a4a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 20px;
+  }
+  h1 { color: var(--accent); text-align:center; font-size:2em; margin-bottom:8px; }
+  .subtitle { text-align:center; color: #888; margin-bottom:40px; }
+  h2 {
+    color: var(--blue);
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 8px;
+    margin: 40px 0 20px;
+    font-size: 1.5em;
+  }
+  h3 { color: var(--purple); margin: 24px 0 12px; font-size:1.15em; }
+  h4 { color: var(--yellow); margin: 16px 0 8px; }
+
+  /* ====== 依赖图 SVG 容器 ====== */
+  .graph-container {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .graph-container svg { display:block; margin:0 auto; }
+
+  /* ====== 状态地图表格 ====== */
+  .state-table { width:100%; border-collapse:collapse; margin:16px 0; font-size:0.9em; }
+  .state-table th { background: var(--card-bg2); color: var(--yellow); padding:10px 14px; text-align:left; border:1px solid var(--border); }
+  .state-table td { padding:10px 14px; border:1px solid var(--border); vertical-align:top; }
+  .state-table tr:hover { background: rgba(255,255,255,0.03); }
+  .tag {
+    display:inline-block; padding:2px 8px; border-radius:4px;
+    font-size:0.78em; font-weight:600; margin:2px;
+  }
+  .tag-file { background: var(--card-bg2); color: var(--blue); }
+  .tag-read { background: #1b4332; color: var(--green); }
+  .tag-write { background: #5c1a1a; color: var(--red); }
+  .tag-env { background: #2d2d1a; color: var(--yellow); }
+  .tag-global { background: var(--accent2); color: #d4bfff; }
+  .tag-disk { background: #1a1a3e; color: var(--purple); }
+
+  /* ====== 卡片 ====== */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 16px 0;
+  }
+  .card h3 { margin-top:0; color: var(--orange); }
+  .risk-high { border-left: 4px solid var(--red); }
+  .risk-medium { border-left: 4px solid var(--yellow); }
+  .risk-low { border-left: 4px solid var(--green); }
+
+  /* ====== 列表 ====== */
+  ul, ol { margin: 8px 0 8px 20px; }
+  li { margin: 4px 0; }
+  .file-path { font-family:'Cascadia Code','Fira Code',monospace; font-size:0.88em; }
+  code {
+    background: var(--card-bg2);
+    color: var(--green);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size:0.88em;
+  }
+  pre {
+    background: var(--card-bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    overflow-x: auto;
+    font-size:0.85em;
+    margin: 8px 0;
+  }
+
+  /* ====== 响应式 ====== */
+  @media (max-width:900px) {
+    body { padding:10px; }
+    .state-table { font-size:0.75em; }
+  }
+</style>
+</head>
+<body>
+
+<h1>RAG-Challenge-2 代码分析报告</h1>
+<p class="subtitle">生成时间: 2026-06-10 &nbsp;|&nbsp; 项目: RAG-Challenge-2-main</p>
+
+<!-- ============================================================ -->
+<!-- 图 1: 依赖图 -->
+<!-- ============================================================ -->
+<h2>图 1: 文件依赖图 (Import Graph)</h2>
+<p>箭头方向: <strong>调用者 → 被调用者</strong>。红色虚线标注近循环依赖路径。</p>
+
+<div class="graph-container">
+<svg viewBox="0 0 1300 1050" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4dabf7"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f05454"/>
+    </marker>
+    <marker id="arrowPink" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#e94560"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#00c897"/>
+    </marker>
+  </defs>
+
+  <!-- 文件节点 -->
+  <!-- main.py -->
+  <rect x="560" y="15" rx="8" ry="8" width="160" height="48" fill="#0f3460" stroke="#4dabf7" stroke-width="2"/>
+  <text x="640" y="38" text-anchor="middle" fill="#4dabf7" font-weight="bold" font-size="13">main.py</text>
+  <text x="640" y="54" text-anchor="middle" fill="#888" font-size="10">(CLI 入口)</text>
+
+  <!-- pipeline.py -->
+  <rect x="560" y="110" rx="8" ry="8" width="160" height="48" fill="#0f3460" stroke="#4dabf7" stroke-width="2"/>
+  <text x="640" y="133" text-anchor="middle" fill="#4dabf7" font-weight="bold" font-size="13">pipeline.py</text>
+  <text x="640" y="149" text-anchor="middle" fill="#888" font-size="10">(主流程调度)</text>
+
+  <!-- questions_processing.py -->
+  <rect x="560" y="220" rx="8" ry="8" width="180" height="70" fill="#16213e" stroke="#f0a500" stroke-width="2"/>
+  <text x="650" y="248" text-anchor="middle" fill="#f0a500" font-weight="bold" font-size="12">questions_processing.py</text>
+  <text x="650" y="265" text-anchor="middle" fill="#888" font-size="10">QuestionsProcessor</text>
+  <text x="650" y="280" text-anchor="middle" fill="#888" font-size="10">(问答主逻辑)</text>
+
+  <!-- api_requests.py -->
+  <rect x="700" y="380" rx="8" ry="8" width="180" height="70" fill="#16213e" stroke="#b197fc" stroke-width="2"/>
+  <text x="790" y="408" text-anchor="middle" fill="#b197fc" font-weight="bold" font-size="12">api_requests.py</text>
+  <text x="790" y="425" text-anchor="middle" fill="#888" font-size="10">APIProcessor / BaseOpenAI</text>
+  <text x="790" y="440" text-anchor="middle" fill="#888" font-size="10">(LLM 交互层)</text>
+
+  <!-- api_request_parallel_processor.py -->
+  <rect x="940" y="380" rx="8" ry="8" width="200" height="48" fill="#16213e" stroke="#b197fc" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="1040" y="403" text-anchor="middle" fill="#b197fc" font-weight="bold" font-size="11">api_request_parallel_</text>
+  <text x="1040" y="419" text-anchor="middle" fill="#b197fc" font-weight="bold" font-size="11">processor.py</text>
+
+  <!-- retrieval.py -->
+  <rect x="360" y="325" rx="8" ry="8" width="160" height="70" fill="#16213e" stroke="#00c897" stroke-width="2"/>
+  <text x="440" y="353" text-anchor="middle" fill="#00c897" font-weight="bold" font-size="12">retrieval.py</text>
+  <text x="440" y="370" text-anchor="middle" fill="#888" font-size="10">VectorRetriever</text>
+  <text x="440" y="385" text-anchor="middle" fill="#888" font-size="10">HybridRetriever</text>
+
+  <!-- reranking.py -->
+  <rect x="360" y="460" rx="8" ry="8" width="160" height="55" fill="#16213e" stroke="#ffd369" stroke-width="2"/>
+  <text x="440" y="485" text-anchor="middle" fill="#ffd369" font-weight="bold" font-size="12">reranking.py</text>
+  <text x="440" y="502" text-anchor="middle" fill="#888" font-size="10">LLMReranker</text>
+
+  <!-- prompts.py -->
+  <rect x="200" y="600" rx="8" ry="8" width="150" height="65" fill="#1b4332" stroke="#00c897" stroke-width="2"/>
+  <text x="275" y="628" text-anchor="middle" fill="#00c897" font-weight="bold" font-size="12">prompts.py</text>
+  <text x="275" y="645" text-anchor="middle" fill="#888" font-size="10">Prompt / Schema</text>
+  <text x="275" y="658" text-anchor="middle" fill="#888" font-size="10">(无内部依赖)</text>
+
+  <!-- tables_serialization.py -->
+  <rect x="780" y="240" rx="8" ry="8" width="180" height="55" fill="#16213e" stroke="#e94560" stroke-width="2"/>
+  <text x="870" y="265" text-anchor="middle" fill="#e94560" font-weight="bold" font-size="12">tables_serialization.py</text>
+  <text x="870" y="282" text-anchor="middle" fill="#888" font-size="10">TableSerializer</text>
+
+  <!-- pdf_parsing.py -->
+  <rect x="560" y="560" rx="8" ry="8" width="160" height="55" fill="#16213e" stroke="#ffd369" stroke-width="2"/>
+  <text x="640" y="585" text-anchor="middle" fill="#ffd369" font-weight="bold" font-size="12">pdf_parsing.py</text>
+  <text x="640" y="602" text-anchor="middle" fill="#888" font-size="10">PDFParser</text>
+
+  <!-- parsed_reports_merging.py -->
+  <rect x="800" y="550" rx="8" ry="8" width="200" height="55" fill="#16213e" stroke="#4dabf7" stroke-width="2"/>
+  <text x="900" y="575" text-anchor="middle" fill="#4dabf7" font-weight="bold" font-size="12">parsed_reports_merging.py</text>
+  <text x="900" y="595" text-anchor="middle" fill="#888" font-size="10">PageTextPreparation</text>
+
+  <!-- text_splitter.py -->
+  <rect x="800" y="640" rx="8" ry="8" width="160" height="48" fill="#16213e" stroke="#4dabf7" stroke-width="2"/>
+  <text x="880" y="662" text-anchor="middle" fill="#4dabf7" font-weight="bold" font-size="12">text_splitter.py</text>
+  <text x="880" y="679" text-anchor="middle" fill="#888" font-size="10">TextSplitter</text>
+
+  <!-- ingestion.py -->
+  <rect x="560" y="670" rx="8" ry="8" width="160" height="48" fill="#16213e" stroke="#4dabf7" stroke-width="2"/>
+  <text x="640" y="692" text-anchor="middle" fill="#4dabf7" font-weight="bold" font-size="12">ingestion.py</text>
+  <text x="640" y="709" text-anchor="middle" fill="#888" font-size="10">BM25/VectorDB</text>
+
+  <!-- 依赖箭头 -->
+
+  <!-- main.py → pipeline.py -->
+  <line x1="640" y1="63" x2="640" y2="110" stroke="#4dabf7" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- pipeline.py → pdf_parsing.py -->
+  <line x1="640" y1="158" x2="660" y2="330" stroke="#4dabf7" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <line x1="660" y1="330" x2="550" y2="450" stroke="#4dabf7" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <line x1="550" y1="450" x2="640" y2="560" stroke="#4dabf7" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- pipeline.py → questions_processing.py -->
+  <line x1="625" y1="220" x2="625" y2="158" stroke="#f0a500" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- pipeline.py → parsed_reports_merging.py -->
+  <path d="M 720 134 C 780 134, 780 180, 840 240" stroke="#4dabf7" stroke-width="1.5" fill="none" stroke-dasharray="6,3"/>
+  <path d="M 840 240 C 860 300, 900 400, 900 550" stroke="#4dabf7" stroke-width="1.5" fill="none" marker-end="url(#arrowBlue)"/>
+
+  <!-- pipeline.py → text_splitter.py -->
+  <path d="M 720 134 C 780 134, 850 200, 880 640" stroke="#4dabf7" stroke-width="1.5" fill="none" marker-end="url(#arrowBlue)"/>
+
+  <!-- pipeline.py → ingestion.py -->
+  <line x1="640" y1="158" x2="640" y2="670" stroke="#4dabf7" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- pipeline.py → tables_serialization.py -->
+  <path d="M 720 134 C 780 134, 780 170, 820 240" stroke="#e94560" stroke-width="1.5" fill="none" marker-end="url(#arrowBlue)"/>
+
+  <!-- questions_processing.py → retrieval.py -->
+  <path d="M 560 255 C 500 255, 500 300, 460 325" stroke="#00c897" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- questions_processing.py → api_requests.py -->
+  <path d="M 740 255 C 780 255, 800 330, 790 380" stroke="#b197fc" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- retrieval.py → reranking.py -->
+  <line x1="440" y1="395" x2="440" y2="460" stroke="#ffd369" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <!-- reranking.py → prompts.py -->
+  <path d="M 360 487 C 300 487, 300 550, 275 600" stroke="#00c897" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- api_requests.py → prompts.py -->
+  <path d="M 750 450 C 680 500, 400 550, 350 600" stroke="#00c897" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- api_requests.py → api_request_parallel_processor.py -->
+  <line x1="880" y1="405" x2="940" y2="405" stroke="#b197fc" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- tables_serialization.py → api_requests.py (extends BaseOpenaiProcessor) -->
+  <path d="M 840 295 C 800 340, 780 350, 790 380" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- pdf_parsing.py → (uses JsonReportProcessor internally, same file) -->
+  <rect x="630" y="630" rx="6" ry="6" width="180" height="30" fill="#1b4332" stroke="#00c897" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="720" y="650" text-anchor="middle" fill="#00c897" font-size="10">JsonReportProcessor (同文件)</text>
+
+  <!-- 近循环标注 -->
+  <path d="M 560 255 C 400 200, 200 180, 200 500" stroke="#f05454" stroke-width="3" fill="none" stroke-dasharray="8,4" marker-end="url(#arrowRed)"/>
+  <text x="320" y="195" fill="#f05454" font-size="11" font-weight="bold">━ 近循环路径</text>
+
+  <path d="M 600 340 C 350 300, 250 350, 200 500" stroke="#f05454" stroke-width="2.5" fill="none" stroke-dasharray="6,3" marker-end="url(#arrowRed)"/>
+  <text x="380" y="330" fill="#f05454" font-size="10">questions_processing → retrieval → reranking → prompts</text>
+  <text x="405" y="345" fill="#f05454" font-size="10">questions_processing → api_requests → prompts</text>
+
+  <!-- 外部依赖灰色标注 -->
+  <rect x="30" y="780" rx="6" ry="6" width="350" height="100" fill="#1a1a3e" stroke="#555" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="205" y="800" text-anchor="middle" fill="#888" font-size="11" font-weight="bold">外部依赖</text>
+  <text x="40" y="820" fill="#777" font-size="10">docling (pdf_parsing), faiss / numpy (ingestion, retrieval)</text>
+  <text x="40" y="837" fill="#777" font-size="10">rank_bm25 (ingestion, retrieval), tiktoken (text_splitter, api_requests)</text>
+  <text x="40" y="854" fill="#777" font-size="10">langchain.text_splitter (text_splitter), dashscope (ingestion, api_requests, reranking, retrieval)</text>
+  <text x="40" y="871" fill="#777" font-size="10">openai / google.generativeai / aiohttp / tenacity / json_repair</text>
+
+  <rect x="420" y="780" rx="6" ry="6" width="280" height="85" fill="#1a1a3e" stroke="#555" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="560" y="798" text-anchor="middle" fill="#888" font-size="11" font-weight="bold">setup.py</text>
+  <text x="430" y="816" fill="#777" font-size="10">find_packages() 将整个 src/ 注册为</text>
+  <text x="430" y="834" fill="#777" font-size="10">包 "erc2" (安装后 import erc2.xxx)</text>
+  <text x="430" y="852" fill="#777" font-size="10">但内部代码使用 import src.xxx</text>
+</svg>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h3>关键发现</h3>
+  <ul>
+    <li><strong>无真正的循环导入</strong>，但 <code>questions_processing.py</code> 通过两条路径到达 <code>prompts.py</code>，形成<strong>近循环</strong>（图中红色虚线）。</li>
+    <li><code>tables_serialization.py</code> 继承 <code>api_requests.BaseOpenaiProcessor</code>，形成紧耦合。</li>
+    <li><code>api_requests.py</code> 也是"上帝模块"——包含 5 个 Provider Processor 类 + APIProcessor Facade + AsyncOpenaiProcessor，文件超 800 行。</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<!-- 图 2: 状态地图 -->
+<!-- ============================================================ -->
+<h2>图 2: 状态地图 (State Map)</h2>
+<p>所有全局/持久化状态，及其读写步骤。</p>
+
+<h3>2.1 磁盘持久化状态 (文件系统 DB)</h3>
+<table class="state-table">
+  <thead>
+    <tr>
+      <th style="width:22%">状态 / 数据</th>
+      <th style="width:12%">类型</th>
+      <th style="width:28%">写入步骤</th>
+      <th style="width:38%">读取步骤</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>01_parsed_reports/*.json</code><br><small>(PDF 解析输出)</small></td>
+      <td><span class="tag tag-disk">JSON 文件</span></td>
+      <td>
+        <span class="tag tag-file">pipeline.parse_pdf_reports</span><br>
+        <span class="tag tag-file">pdf_parsing.PDFParser.process_documents</span>
+      </td>
+      <td>
+        <span class="tag tag-file">pipeline.merge_reports</span><br>
+        <span class="tag tag-file">pipeline.export_reports_to_markdown</span><br>
+        <span class="tag tag-file">pipeline.serialize_tables</span><br>
+        <span class="tag tag-file">tables_serialization.process_directory_parallel</span>
+      </td>
+    </tr>
+    <tr>
+      <td><code>02_merged_reports/*.json</code><br><small>(规整后的页面结构)</small></td>
+      <td><span class="tag tag-disk">JSON 文件</span></td>
+      <td>
+        <span class="tag tag-file">pipeline.merge_reports</span><br>
+        <span class="tag tag-file">parsed_reports_merging.process_reports</span>
+      </td>
+      <td>
+        <span class="tag tag-file">pipeline.chunk_reports</span><br>
+        <span class="tag tag-file">text_splitter.split_all_reports</span>
+      </td>
+    </tr>
+    <tr>
+      <td><code>03_reports_markdown/*.md</code><br><small>(Markdown 导出)</small></td>
+      <td><span class="tag tag-disk">MD 文件</span></td>
+      <td>
+        <span class="tag tag-file">pipeline.export_reports_to_markdown</span><br>
+        <span class="tag tag-file">parsed_reports_merging.export_to_markdown</span>
+      </td>
+      <td><em>(仅供人工审查，不下游程序读取)</em></td>
+    </tr>
+    <tr>
+      <td><code>databases/chunked_reports/*.json</code><br><small>(分块后报告)</small></td>
+      <td><span class="tag tag-disk">JSON 文件</span></td>
+      <td>
+        <span class="tag tag-file">pipeline.chunk_reports</span><br>
+        <span class="tag tag-file">text_splitter.split_all_reports</span>
+      </td>
+      <td>
+        <span class="tag tag-file">pipeline.create_vector_dbs</span><br>
+        <span class="tag tag-file">pipeline.create_bm25_db</span><br>
+        <span class="tag tag-file">ingestion.VectorDBIngestor.process_reports</span><br>
+        <span class="tag tag-file">ingestion.BM25Ingestor.process_reports</span><br>
+        <span class="tag tag-file">retrieval.VectorRetriever._load_dbs</span><br>
+        <span class="tag tag-file">retrieval.BM25Retriever.retrieve_by_company_name</span>
+      </td>
+    </tr>
+    <tr>
+      <td><code>databases/vector_dbs/*.faiss</code><br><small>(FAISS 向量库)</small></td>
+      <td><span class="tag tag-disk">FAISS 索引</span></td>
+      <td>
+        <span class="tag tag-file">pipeline.create_vector_dbs</span><br>
+        <span class="tag tag-file">ingestion.VectorDBIngestor.process_reports</span>
+      </td>
+      <td>
+        <span class="tag tag-file">retrieval.VectorRetriever._load_dbs</span><br>
+        <span class="tag tag-file">retrieval.VectorRetriever.retrieve_by_company_name</span>
+      </td>
+    </tr>
+    <tr>
+      <td><code>databases/bm25_dbs/*.pkl</code><br><small>(BM25 索引)</small></td>
+      <td><span class="tag tag-disk">Pickle</span></td>
+      <td>
+        <span class="tag tag-file">pipeline.create_bm25_db</span><br>
+        <span class="tag tag-file">ingestion.BM25Ingestor.process_reports</span>
+      </td>
+      <td>
+        <span class="tag tag-file">retrieval.BM25Retriever.retrieve_by_company_name</span>
+      </td>
+    </tr>
+    <tr>
+      <td><code>subset.csv / subset.json</code><br><small>(公司元数据)</small></td>
+      <td><span class="tag tag-disk">CSV/JSON</span></td>
+      <td>
+        <span class="tag tag-file">pipeline._convert_json_to_csv_if_needed</span><br>
+        <span class="tag tag-file">pdf_parsing.PDFParser._parse_csv_metadata</span>
+      </td>
+      <td>
+        <span class="tag tag-file">questions_processing._extract_companies_from_subset</span><br>
+        <span class="tag tag-file">questions_processing._extract_references</span>
+      </td>
+    </tr>
+    <tr>
+      <td><code>questions.json</code><br><small>(问题数据)</small></td>
+      <td><span class="tag tag-disk">JSON 文件</span></td>
+      <td><em>(手工提供)</em></td>
+      <td>
+        <span class="tag tag-file">questions_processing._load_questions</span>
+      </td>
+    </tr>
+    <tr>
+      <td><code>answers_*.json / answers_*_debug.json</code><br><small>(答案输出)</small></td>
+      <td><span class="tag tag-disk">JSON 文件</span></td>
+      <td>
+        <span class="tag tag-file">questions_processing._save_progress</span><br>
+        <span class="tag tag-file">questions_processing.process_all_questions</span>
+      </td>
+      <td><em>(最终产物，不被下游读取)</em></td>
+    </tr>
+    <tr>
+      <td><code>embedding_error.log</code><br><small>(硬编码错误日志)</small></td>
+      <td><span class="tag tag-disk">文本文件</span></td>
+      <td>
+        <span class="tag tag-file">ingestion.VectorDBIngestor._get_embeddings</span>
+        <span style="color:#f05454;font-weight:bold;">(硬编码路径!)</span>
+      </td>
+      <td><em>(仅写入，不被读取)</em></td>
+    </tr>
+    <tr>
+      <td><code>./temp/*.jsonl</code><br><small>(临时异步请求)</small></td>
+      <td><span class="tag tag-disk">JSONL 文件</span></td>
+      <td>
+        <span class="tag tag-file">tables_serialization.TableSerializer.async_serialize_tables</span><br>
+        <span class="tag tag-file">api_requests.AsyncOpenaiProcessor</span>
+      </td>
+      <td>
+        <span class="tag tag-file">tables_serialization.TableSerializer.process_file</span><br>
+        <span class="tag tag-file">api_request_parallel_processor.process_api_requests_from_file</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>2.2 内存全局状态</h3>
+<table class="state-table">
+  <thead>
+    <tr>
+      <th style="width:25%">状态</th>
+      <th style="width:12%">位置</th>
+      <th style="width:10%">类型</th>
+      <th style="width:28%">写入</th>
+      <th style="width:25%">读取</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>configs / preprocess_configs</code><br><small>(配置字典)</small></td>
+      <td><span class="tag tag-file">pipeline.py</span><br><small>模块级变量 (L300+)</small></td>
+      <td><span class="tag tag-global">模块级 dict</span></td>
+      <td><code>pipeline.py</code> 模块加载时定义</td>
+      <td>
+        <span class="tag tag-file">main.py</span> <code>from src.pipeline import configs</code><br>
+        <span class="tag tag-file">pipeline.py</span> <code>if __name__ == "__main__"</code>
+      </td>
+    </tr>
+    <tr>
+      <td><code>message_queue</code></td>
+      <td><span class="tag tag-file">tables_serialization.py</span><br><small>L17 模块级</small></td>
+      <td><span class="tag tag-global">queue.Queue</span></td>
+      <td><code>TqdmLoggingHandler.emit</code></td>
+      <td><code>process_messages()</code><br><code>process_directory_parallel</code></td>
+    </tr>
+    <tr>
+      <td><code>dashscope.api_key</code></td>
+      <td><span class="tag tag-file">ingestion.py</span> L62<br><span class="tag tag-file">reranking.py</span> L65<br><span class="tag tag-file">api_requests.py</span> L642<br><span class="tag tag-file">retrieval.py</span> L101</td>
+      <td><span class="tag tag-env">库全局变量</span></td>
+      <td><code>__init__</code> 方法中设置</td>
+      <td>各 dashscope API 调用</td>
+    </tr>
+    <tr>
+      <td><code>QuestionsProcessor.answer_details</code></td>
+      <td><span class="tag tag-file">questions_processing.py</span></td>
+      <td><span class="tag tag-global">实例 list</span></td>
+      <td>
+        <code>_create_answer_detail_ref</code> <span class="tag tag-write">(带 _lock)</span><br>
+        <code>_handle_processing_error</code> <span class="tag tag-write">(带 _lock)</span>
+      </td>
+      <td>
+        <code>_post_process_submission_answers</code><br>
+        <code>_save_progress</code>
+      </td>
+    </tr>
+    <tr>
+      <td><code>QuestionsProcessor.companies_df</code></td>
+      <td><span class="tag tag-file">questions_processing.py</span></td>
+      <td><span class="tag tag-global">实例 pd.DataFrame</span></td>
+      <td>
+        <code>_extract_companies_from_subset</code> (lazy<br>加载)<br>
+        <code>_extract_references</code>
+      </td>
+      <td>
+        <code>_extract_companies_from_subset</code><br>
+        <code>_extract_references</code>
+      </td>
+    </tr>
+    <tr>
+      <td><code>XXX.response_data</code><br><small>(各 API Processor)</small></td>
+      <td>
+        <span class="tag tag-file">api_requests.py</span> (all 5<br>processors)<br>
+        <span class="tag tag-file">questions_processing.py</span>
+      </td>
+      <td><span class="tag tag-global">实例 dict</span></td>
+      <td>每次 <code>send_message</code> 后写入<br>
+        <code>get_answer_for_company</code> (从<br>processor 同步)</td>
+      <td>
+        <code>_create_answer_detail_ref</code> (用于<br>审计日志)<br>
+        console print
+      </td>
+    </tr>
+    <tr>
+      <td><code>PDFParser.metadata_lookup</code></td>
+      <td><span class="tag tag-file">pdf_parsing.py</span></td>
+      <td><span class="tag tag-global">实例 dict</span></td>
+      <td>
+        <code>__init__</code> (从 CSV)<br>
+        <span class="tag tag-write" style="background:#5c1a1a;color:#f05454;">直接赋值!</span> <code>parser.metadata_lookup = ...</code>
+      </td>
+      <td><code>JsonReportProcessor.assemble_metainfo</code></td>
+    </tr>
+    <tr>
+      <td><code>PDFParser.debug_data_path</code></td>
+      <td><span class="tag tag-file">pdf_parsing.py</span></td>
+      <td><span class="tag tag-global">实例 Path</span></td>
+      <td><code>pipeline.parse_pdf_reports</code><br>
+        <span class="tag tag-write" style="background:#5c1a1a;color:#f05454;">直接赋值!</span>
+      </td>
+      <td><code>JsonReportProcessor.debug_data</code></td>
+    </tr>
+    <tr>
+      <td><code>os.environ["OMP_NUM_THREADS"]</code></td>
+      <td><span class="tag tag-file">pdf_parsing.py</span></td>
+      <td><span class="tag tag-env">环境变量</span></td>
+      <td><code>PDFParser.__init__</code></td>
+      <td>底层 C/C++ 库</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>2.3 环境变量 (通过 load_dotenv 加载)</h3>
+<table class="state-table">
+  <thead>
+    <tr><th>变量名</th><th>调用 load_dotenv 的位置</th><th>读取位置</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>DASHSCOPE_API_KEY</code></td><td>ingestion.py, reranking.py, api_requests.py, retrieval.py</td><td>所有 dashscope API 调用处</td></tr>
+    <tr><td><code>OPENAI_API_KEY</code></td><td>api_requests.py, retrieval.py, reranking.py</td><td>OpenAI 客户端初始化处</td></tr>
+    <tr><td><code>JINA_API_KEY</code></td><td>reranking.py</td><td>JinaReranker.get_headers</td></tr>
+    <tr><td><code>IBM_API_KEY</code></td><td>api_requests.py</td><td>BaseIBMAPIProcessor</td></tr>
+    <tr><td><code>GEMINI_API_KEY</code></td><td>api_requests.py</td><td>BaseGeminiProcessor</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- 清单 1: Public API + bypass -->
+<!-- ============================================================ -->
+<h2>清单 1: Public API 和 Public Import 路径</h2>
+
+<h3>主入口 CLI (main.py)</h3>
+<pre>python main.py download-models
+python main.py parse-pdfs [--parallel/--sequential]
+python main.py serialize-tables
+python main.py process-reports --config [ser_tab|no_ser_tab]
+python main.py process-questions --config [base|pdr|max|max_no_ser_tab|max_nst_o3m|max_st_o3m|ibm_llama70b|ibm_llama8b|gemini_thinking]</pre>
+
+<h3>直接模块调用 (pipeline.py __main__)</h3>
+<pre>python -m src.pipeline  # 运行 if __name__ == "__main__" 内的流程</pre>
+
+<h3>Public Import 路径</h3>
+<table class="state-table">
+  <thead>
+    <tr><th>Import 语句</th><th>模块</th><th>导出符号</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>from src.pipeline import Pipeline, RunConfig, configs, preprocess_configs</code></td><td>pipeline.py</td><td>Pipeline, RunConfig, PipelineConfig, configs (dict), preprocess_configs (dict)</td></tr>
+    <tr><td><code>from src.pdf_parsing import PDFParser</code></td><td>pdf_parsing.py</td><td>PDFParser (JsonReportProcessor 未导出)</td></tr>
+    <tr><td><code>from src.ingestion import BM25Ingestor, VectorDBIngestor</code></td><td>ingestion.py</td><td>BM25Ingestor, VectorDBIngestor</td></tr>
+    <tr><td><code>from src.retrieval import VectorRetriever, HybridRetriever, BM25Retriever</code></td><td>retrieval.py</td><td>VectorRetriever, BM25Retriever, HybridRetriever</td></tr>
+    <tr><td><code>from src.reranking import LLMReranker, JinaReranker</code></td><td>reranking.py</td><td>JinaReranker, LLMReranker</td></tr>
+    <tr><td><code>from src.questions_processing import QuestionsProcessor</code></td><td>questions_processing.py</td><td>QuestionsProcessor</td></tr>
+    <tr><td><code>from src.api_requests import APIProcessor</code></td><td>api_requests.py</td><td>BaseOpenaiProcessor, BaseIBMAPIProcessor, BaseGeminiProcessor, BaseDashscopeProcessor, APIProcessor, AsyncOpenaiProcessor</td></tr>
+    <tr><td><code>from src.tables_serialization import TableSerializer</code></td><td>tables_serialization.py</td><td>TableSerializer, TableSerialization (schema), TqdmLoggingHandler, message_queue, process_messages</td></tr>
+    <tr><td><code>from src.text_splitter import TextSplitter</code></td><td>text_splitter.py</td><td>TextSplitter</td></tr>
+    <tr><td><code>from src.parsed_reports_merging import PageTextPreparation</code></td><td>parsed_reports_merging.py</td><td>PageTextPreparation</td></tr>
+    <tr><td><code>from src.prompts import *</code></td><td>prompts.py</td><td>多个 Prompt / Schema 类</td></tr>
+  </tbody>
+</table>
+
+<p style="margin-top:16px; color:var(--yellow);"><strong>注意：</strong> <code>setup.py</code> 注册包名为 <code>erc2</code> (安装后可用 <code>import erc2.xxx</code>)，但代码内部使用的是 <code>import src.xxx</code>——这两套 import 路径不一致。</p>
+
+<h3>下游可能绕过 Public API 直接调用的内部函数</h3>
+<table class="state-table">
+  <thead>
+    <tr><th style="width:18%">文件</th><th style="width:35%">内部函数/方法</th><th style="width:47%">风险</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="tag tag-file">pdf_parsing.py</span></td>
+      <td><code>_process_chunk()</code> (顶层函数)<br>
+        <code>PDFParser._create_document_converter()</code><br>
+        <code>PDFParser.convert_documents()</code><br>
+        <code>PDFParser.process_documents()</code><br>
+        <code>PDFParser._normalize_page_sequence()</code></td>
+      <td>跳过高层 API 直接调用底层方法；绕过 <code>parse_and_export</code> 中的日志和错误处理</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">retrieval.py</span></td>
+      <td><code>VectorRetriever._get_embedding()</code><br>
+        <code>VectorRetriever._load_dbs()</code></td>
+      <td>可能用错 embedding provider 上下文；绕过 <code>retrieve_by_company_name</code> 的结果格式保证</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">reranking.py</span></td>
+      <td><code>LLMReranker.get_rank_for_single_block()</code><br>
+        <code>LLMReranker.get_rank_for_multiple_blocks()</code></td>
+      <td>绕过 <code>rerank_documents</code> 的加权融合逻辑 (llm_weight * relevance + vector_weight * distance)；dashscope 模式下返回假分数 0.0</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">questions_processing.py</span></td>
+      <td><code>_extract_companies_from_subset()</code><br>
+        <code>_validate_page_references()</code><br>
+        <code>_format_retrieval_results()</code><br>
+        <code>_extract_references()</code></td>
+      <td>公司名提取规则（正则匹配）与子集 CSV 强耦合；页码校验可能在绕过时产生幻觉引用</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">api_requests.py</span></td>
+      <td><code>APIProcessor._build_rag_context_prompts()</code><br>
+        <code>BaseOpenaiProcessor.send_message()</code><br>
+        <code>BaseIBMAPIProcessor._reparse_response()</code></td>
+      <td>直接调用 <code>send_message</code> 而不通过 <code>APIProcessor.get_answer_from_rag_context</code> 会丢失 schema prompt 自动选择逻辑</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">parsed_reports_merging.py</span></td>
+      <td><code>PageTextPreparation.prepare_page_text()</code><br>
+        <code>_apply_formatting_rules()</code><br>
+        <code>_render_table_group()</code><br>
+        <code>_render_list_group()</code></td>
+      <td>跳过 <code>process_reports</code> 的批量处理逻辑；格式化规则变更影响所有下游</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">text_splitter.py</span></td>
+      <td><code>_split_page()</code><br>
+        <code>_split_report()</code></td>
+      <td>使用 hardcoded chunk_size=300; chunk_overlap=50; 绕过 <code>split_all_reports</code> 的序列化表格插入</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">tables_serialization.py</span></td>
+      <td><code>_get_table_context()</code><br>
+        <code>_send_serialization_request()</code><br>
+        <code>_serialize_table()</code></td>
+      <td>绕过 <code>serialize_tables</code> 的批量处理; 直接调用 LLM 请求无错误处理</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-file">ingestion.py</span></td>
+      <td><code>VectorDBIngestor._get_embeddings()</code><br>
+        <code>VectorDBIngestor._create_vector_db()</code><br>
+        <code>VectorDBIngestor._process_report()</code></td>
+      <td>绕过 <code>process_reports</code> 的文件 I/O 和 FAISS 保存；硬编码 <code>embedding_error.log</code> 路径</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- 清单 2: 事件/日志/审计 -->
+<!-- ============================================================ -->
+<h2>清单 2: 事件、日志、审计记录的格式和触发位置</h2>
+
+<table class="state-table">
+  <thead>
+    <tr><th style="width:15%">日志类型</th><th style="width:12%">级别</th><th style="width:18%">触发位置</th><th style="width:55%">格式与内容</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>print()</strong> 语句</td>
+      <td>-</td>
+      <td>所有模块 (pipeline, pdf_parsing, ingestion, retrieval, questions_processing, tables_serialization, api_requests, reranking)</td>
+      <td>无统一格式。典型的输出:
+        <pre>"PDF reports parsed and saved to ..."
+"Step 1: Merging reports..."
+"Vector databases created in ..."
+"Warning: Removed {N} hallucinated page references: ..."
+"Error processing structured response, attempting to reparse ..."</pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>logging (python logging)</strong></td>
+      <td>DEBUG/ERROR</td>
+      <td>
+        <span class="tag tag-file">pdf_parsing.py</span> <code>_log = logging.getLogger(__name__)</code><br>
+        <span class="tag tag-file">retrieval.py</span> <code>_log = logging.getLogger(__name__)</code>
+      </td>
+      <td>
+        <pre>_log.info("Starting to process {N} documents")
+_log.info("Processed {N} docs, {M} failed")
+_log.error("Failed converting {N} out of {M} documents")
+_log.warning("No matching vector DB found for ...")
+_log.info(f"{'#'*50}\nCompleted in {t}s\n{'#'*50}")</pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>tqdm 进度条</strong></td>
+      <td>INFO</td>
+      <td>
+        <span class="tag tag-file">ingestion.py</span> <code>process_reports</code><br>
+        <span class="tag tag-file">tables_serialization.py</span> <code>process_directory_parallel</code><br>
+        <span class="tag tag-file">questions_processing.py</span> <code>process_questions_list</code>
+      </td>
+      <td>
+        <pre>desc="Processing reports for BM25"
+desc="Processing files"  (TableSerializer)
+desc="Processing questions"</pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>响应数据日志 (response_data)</strong></td>
+      <td>-</td>
+      <td>各 API Processor 的 <code>send_message</code> 方法内</td>
+      <td>
+        <pre>print({"model": "...", "input_tokens": N, "output_tokens": M})</pre>
+        每个 LLM 请求后，response_data 被赋值到 <code>self.response_data</code>，然后被 <code>QuestionsProcessor</code> 复制到 <code>answer_details</code> 中持久化到输出 JSON。
+      </td>
+    </tr>
+    <tr>
+      <td><strong>answer_details 审计</strong></td>
+      <td>-</td>
+      <td>
+        <span class="tag tag-file">questions_processing.py</span><br>
+        <code>_create_answer_detail_ref</code><br>
+        <code>_save_progress</code>
+      </td>
+      <td>
+        写入 <code>answers_*_debug.json</code>，格式:
+        <pre>{
+  "step_by_step_analysis": "...",
+  "reasoning_summary": "...",
+  "relevant_pages": [...],
+  "response_data": {"model":..., "input_tokens":..., "output_tokens":...},
+  "self": "#/answer_details/N"
+}</pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>embedding_error.log</strong></td>
+      <td>-</td>
+      <td>
+        <span class="tag tag-file">ingestion.py</span><br>
+        <code>VectorDBIngestor._get_embeddings</code>
+      </td>
+      <td><strong>硬编码路径</strong>，当前目录。记录 DashScope embedding 返回为空时的错误文本</td>
+    </tr>
+    <tr>
+      <td><strong>TableSerializer 日志</strong></td>
+      <td>INFO/ERROR</td>
+      <td>
+        <span class="tag tag-file">tables_serialization.py</span><br>
+        <code>TqdmLoggingHandler</code><br>
+        <code>message_queue</code>
+      </td>
+      <td>自定义 TqdmLoggingHandler 将日志通过 <code>message_queue</code> 管道集成到 tqdm 进度条中:
+        <pre>self.logger.info("Starting parallel table serialization...")
+self.logger.error("JSON Error in %s: %s", ...)</pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>异常 & traceback</strong></td>
+      <td>ERROR</td>
+      <td>
+        <span class="tag tag-file">questions_processing.py</span><br>
+        <code>_handle_processing_error</code>
+      </td>
+      <td>
+        <pre>print("Error type: {type}")
+print("Error message: {msg}")
+print("Full traceback:\n{tb}")</pre>
+        同时存入 <code>answer_details[N].error_traceback</code>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>dashscope debug 打印</strong></td>
+      <td>-</td>
+      <td>
+        <span class="tag tag-file">api_requests.py</span><br>
+        <code>BaseDashscopeProcessor.send_message</code> (L681-683)
+      </td>
+      <td><strong>API Key 泄露风险!</strong>
+        <pre>print('dashscope.api_key=', dashscope.api_key)  // 打印完整 API Key!
+print('model=', model)
+print('response=', response)</pre>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>http 请求日志</strong></td>
+      <td>DEBUG</td>
+      <td>
+        <span class="tag tag-file">api_request_parallel_processor.py</span>
+      </td>
+      <td>通过 <code>logging_level</code> 参数控制的详细日志:
+        <pre>"Reading request {task_id}: ..."
+"Retrying request {task_id}: ..."</pre>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="color:var(--red); margin-top:20px;">关键问题</h3>
+<ul>
+  <li><strong>print() 泛滥</strong>：几乎所有模块都用 <code>print()</code> 代替 logging，输出格式不统一，无法控制级别。</li>
+  <li><strong>API Key 泄露</strong>：<code>BaseDashscopeProcessor.send_message</code> 打印完整的 <code>dashscope.api_key</code>。</li>
+  <li><strong>硬编码路径</strong>：<code>embedding_error.log</code>、<code>./temp/</code> 等写入工作目录，可能造成路径冲突。</li>
+  <li><strong>logging.basicConfig</strong> 被多次调用（pipeline 多个方法），第二次调用无效果，导致早期设置可能被忽略。</li>
+</ul>
+
+<!-- ============================================================ -->
+<!-- 清单 3: 重构风险 -->
+<!-- ============================================================ -->
+<h2>重构风险矩阵：单文件修改而其他不动时最容易出问题的地方</h2>
+
+<div class="card risk-high">
+  <h3>高风险</h3>
+  <h4>1. 只改 <code>prompts.py</code>（不改 api_requests.py / reranking.py）</h4>
+  <p>prompts.py 被 <strong>api_requests.py 和 reranking.py</strong> 同时引用（近循环）。如果:</p>
+  <ul>
+    <li>修改 Prompt Schema 类的字段名/类型（如 <code>AnswerSchema.final_answer</code> 从 Union[float,int,Literal['N/A']] 改类型），<strong>APIProcessor._build_rag_context_prompts</strong> 中选择 schema 时不会报语法错误，但 LLM 结构化输出将收到错误的 response_format，导致解析失败。</li>
+    <li>修改 <code>RephrasedQuestionsPrompt</code> 的 instruction，下游 <code>APIProcessor.get_rephrased_questions</code> 的行为会发生变化，但无任何编译期警告。</li>
+    <li>修改 <code>RerankingPrompt</code> 的 system prompt，<code>LLMReranker</code> 全部重排结果可能偏离预期，并且 <strong>dashscope 分支无法做结构化解析</strong>（当前硬编码默认分数 0.0）。</li>
+    <li>修改 <code>AnswerSchemaFixPrompt</code>，所有 Provider 的 <code>_reparse_response</code> 修复失败率可能大幅上升。</li>
+  </ul>
+
+  <h4>2. 只改 <code>api_requests.py</code>（不改 tables_serialization.py / questions_processing.py）</h4>
+  <p>api_requests.py 是"上帝模块"（5 个 Provider + Facade + Async），被多方依赖:</p>
+  <ul>
+    <li><code>TableSerializer</code> 继承 <code>BaseOpenaiProcessor</code>。如果修改 <code>BaseOpenaiProcessor.send_message</code> 的签名（增加必须参数），<code>TableSerializer</code> 继承同名方法但可能调用时缺少新参数。</li>
+    <li><code>APIProcessor.__init__</code> 的 Provider 调度使用 <code>if/elif</code> 链。如果增加新 Provider，<code>QuestionsProcessor</code> 和 <code>pipeline.py</code> 的 RunConfig 就必须同步更新 <code>api_provider</code> 的允许值，否则静默降级。</li>
+    <li><code>response_data</code> 字典结构被 <code>QuestionsProcessor</code> 读取后存入 <code>answer_details</code>。修改字段名会导致审计日志中出现 None 值。</li>
+    <li><code>BaseDashscopeProcessor.send_message</code> 打印完整 API Key（L681），这是一个安全隐患。</li>
+  </ul>
+
+  <h4>3. 只改 <code>retrieval.py</code>（不改 questions_processing.py）</h4>
+  <ul>
+    <li><code>VectorRetriever.retrieve_by_company_name</code> 返回的 dict 结构（<code>{"distance","page","text"}</code>）被 <code>QuestionsProcessor._format_retrieval_results</code> 直接使用。如果增加/减少字段名，格式化的 RAG context 字符串可以编译通过但在 LLM 端产生错误上下文。</li>
+    <li><code>HybridRetriever</code> 在内部实例化 <code>LLMReranker</code>（reranking.py）。如果修改了 <code>LLMReranker.rerank_documents</code> 的参数签名（如 llm_weight），<code>HybridRetriever.retrieve_by_company_name</code> 不会自动适配——因中间没有任何接口层。</li>
+    <li><code>_load_dbs</code> 的文件结构校验逻辑（检查 metainfo / content / chunks）改动后，已有的 FAISS/JSON 目录可能全部不兼容。</li>
+  </ul>
+
+  <h4>4. 只改 <code>pdf_parsing.py</code>（不改 pipeline.py）</h4>
+  <ul>
+    <li><code>pipeline.py</code> 直接暴力赋值 <code>parser.metadata_lookup = ...</code> 和 <code>parser.debug_data_path = ...</code>。如果将它们改为 property / 私有属性，pipeline 中的赋值立即报 <code>AttributeError</code>。</li>
+    <li><code>JsonReportProcessor</code> 的 <code>assemble_report</code> 输出 JSON 结构被下游 4 个模块（parsed_reports_merging, text_splitter, ingestion, questions_processing）隐式依赖。修改该结构（如字段名）、则所有读取 JSON 的地方都需知道新结构，但目前没有任何 schema 校验。</li>
+  </ul>
+</div>
+
+<div class="card risk-medium">
+  <h3>中风险</h3>
+  <h4>5. 只改 <code>pipeline.py</code>（不改 main.py）</h4>
+  <ul>
+    <li><code>main.py</code> 通过 <code>from src.pipeline import Pipeline, configs, preprocess_configs</code> 导入模块级配置字典。如果删除/重命名 <code>configs</code> 变量，<code>main.py</code> 的 CLI 命令 <code>process_questions</code> 报错。</li>
+    <li><code>if __name__ == "__main__"</code> 内运行完整流程，修改该代码块的执行顺序会影响所有本地测试。</li>
+  </ul>
+
+  <h4>6. 只改 <code>questions_processing.py</code>（不改 retrieval.py / api_requests.py）</h4>
+  <ul>
+    <li><code>get_answer_for_company</code> 创建 <code>VectorRetriever</code> / <code>HybridRetriever</code> 实例时传入 <code>vector_db_dir</code> 和 <code>documents_dir</code>，但不传入 embedding_provider。默认值是 <code>"dashscope"</code>。如果修改了 provider 选择逻辑（例如想统一用 openai embedding），但 <code>VectorRetriever</code> 的默认是 dashscope，就会出现不匹配。</li>
+    <li><code>_extract_companies_from_subset</code> 的正则匹配逻辑与 <code>subset.csv</code> 的公司名格式强耦合。修改正则模式可能导致所有问题无法匹配到公司。</li>
+    <li>threading <code>_lock</code> 保护 <code>answer_details</code>，但 <code>response_data</code> 的赋值（L134）不在锁内——竞争条件。</li>
+  </ul>
+
+  <h4>7. 只改 <code>tables_serialization.py</code>（不改 api_requests.py）</h4>
+  <ul>
+    <li>继承 <code>BaseOpenaiProcessor</code>，使用父类的 <code>send_message</code>、<code>count_tokens</code>。父类方法签名变化直接传导。</li>
+    <li>全局 <code>message_queue</code> + <code>TqdmLoggingHandler</code> 模式：任何其他模块如果也使用 logging.Thread 并发可能导致消息混乱。</li>
+  </ul>
+</div>
+
+<div class="card risk-low">
+  <h3>低风险</h3>
+  <h4>8. 只改 <code>text_splitter.py</code> / <code>parsed_reports_merging.py</code></h4>
+  <p>这两个模块没有其他 src.* 内部依赖，只被 <code>pipeline.py</code> 调用。但难点在于它们产出的中间 JSON 文件被下游隐式依赖：</p>
+  <ul>
+    <li>修改 <code>TextSplitter.chunk_size</code> 默认值（当前 300 tokens），分块粒度改变后向量库需重建。</li>
+    <li>修改 <code>PageTextPreparation._apply_formatting_rules</code> 的渲染逻辑会影响所有下游读取 <code>02_merged_reports</code> 的模块。</li>
+  </ul>
+
+  <h4>9. 只改 <code>ingestion.py</code></h4>
+  <ul>
+    <li>独立模块，只被 <code>pipeline.py</code> 调用，内部依赖都来自外部库（faiss, dashscope, rank_bm25）。</li>
+    <li>但 <code>VectorDBIngestor.__init__</code> 中设置 <code>dashscope.api_key</code>，如果与 <code>retrieval.py</code> 中的设置发生冲突（先设置后覆盖），可能导致 API Key 错误。</li>
+  </ul>
+
+  <h4>10. 只改 <code>api_request_parallel_processor.py</code></h4>
+  <p>完全独立，无内部 src.* 依赖，只被 <code>api_requests.AsyncOpenaiProcessor</code> 调用。但签名修改会直接影响异步处理。</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- 总结 -->
+<!-- ============================================================ -->
+<h2>总结：最脆弱的 5 个痛点</h2>
+
+<ol>
+  <li><strong>prompts.py 是"全局契约"</strong>：被两条路径引用（近循环），修改 Schema/Prompt 无编译期保护，LLM 输出可能静默失败。</li>
+  <li><strong>api_requests.py 是"上帝模块 + 紧耦合"</strong>：<code>TableSerializer</code> 继承 <code>BaseOpenaiProcessor</code>、<code>QuestionsProcessor</code> 依赖 <code>APIProcessor</code> 和 <code>response_data</code>，任何接口变更会级联。</li>
+  <li><strong>PDF 解析输出的 JSON 结构无 schema 校验</strong>：下游 4 个模块隐式假定相同的 JSON 字段名/结构，修改 pdf_parsing.py 的输出可能导致下游静默失败。</li>
+  <li><strong><code>dashscope.api_key</code> 全局写 + 日志泄露</strong>：多个模块直接赋值给库的全局变量，且 <code>BaseDashscopeProcessor.send_message</code> 打印完整 API Key。</li>
+  <li><strong>pipeline.py 直接暴力赋值 parser 的内部属性</strong>（<code>metadata_lookup</code>、<code>debug_data_path</code>），PDFParser 类重构时必然破坏 pipeline.py。</li>
+</ol>
+
+</body>
+</html>
