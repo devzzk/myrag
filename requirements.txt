@@ -1,0 +1,38 @@
+# 核心依赖
+pyprojroot>=0.3.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+
+# PDF解析 - 简单解析器（必需）
+PyPDF2>=3.0.0
+
+# PDF解析 - MinerU（可选，推荐）
+# MinerU 需要单独安装，详见：https://github.com/opendatalab/MinerU
+
+# 向量检索与存储
+faiss-cpu>=1.9.0
+numpy>=1.26.0
+
+# LLM API
+dashscope>=1.20.0
+openai>=1.50.0
+
+# 文本处理
+pydantic>=2.9.0
+tiktoken>=0.8.0
+langchain>=0.3.0
+
+# 数据处理
+pandas>=2.2.0
+
+# 前端
+streamlit>=1.28.0
+
+# 工具库
+requests>=2.32.0
+tabulate>=0.9.0
+json-repair>=0.35.0
+rank-bm25>=0.2.2
+
+# 重试机制
+tenacity>=8.2.0

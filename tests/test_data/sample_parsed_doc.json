@@ -1,0 +1,24 @@
+{
+  "doc_name": "sample_report",
+  "metadata": {
+    "source": "test",
+    "author": "tester"
+  },
+  "pages": [
+    {
+      "page_num": 1,
+      "content": "这是一份测试文档的第一页。\nRAG（检索增强生成）是一种重要的AI技术。\n它结合了信息检索和文本生成的优势。",
+      "metadata": {}
+    },
+    {
+      "page_num": 2,
+      "content": "这是第二页的内容。\n个人知识库可以帮助我们更好地管理信息。\n通过语义检索，我们可以快速找到相关内容。",
+      "metadata": {}
+    },
+    {
+      "page_num": 3,
+      "content": "第三页继续讨论相关技术。\nDashScope 提供了强大的 API 服务。\nQwen 模型在中文理解方面表现优秀。",
+      "metadata": {}
+    }
+  ]
+}
